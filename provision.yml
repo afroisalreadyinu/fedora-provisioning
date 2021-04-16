@@ -238,7 +238,7 @@
         - us.zoom.Zoom
         - com.spotify.Client
 
-    # Don't know of an ansible-native way to do this
+    # Don't know of an ansible-native way to do this.
     - name: Remap capslock to escape
       command: gsettings set org.gnome.desktop.input-sources xkb-options "['caps:escape']"
 
