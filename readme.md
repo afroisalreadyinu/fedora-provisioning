@@ -50,9 +50,10 @@ any already-executed steps, as most Ansible modules are
 - I'd like to sign in to my Firefox profile using Ansible, but looks like it's
   too much work. Same for Chrome.
 
-- Keyboard customizations (mapping caps lock to escape and removing super-s
+- ~~Keyboard customizations (mapping caps lock to escape and removing super-s
   keybinding) are done using the `gsettings` command, causing them to be
-  executed every time.
+  executed every time.~~ Fixed by using the `dconf` module; thanks to
+  [I_am_a_human_male](https://www.reddit.com/r/Fedora/comments/ms0tez/ansible_playbook_example_for_provisioning_a/gupogj5).
 
 - Somehow neither the `dnf` nor `yum_repository` Ansible modules could deal with
   with the Hashicorp YUM repo. Any tips would be appreciated.

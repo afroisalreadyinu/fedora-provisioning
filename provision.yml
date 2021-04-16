@@ -238,13 +238,17 @@
         - us.zoom.Zoom
         - com.spotify.Client
 
-    # Don't know of an ansible-native way to do this.
     - name: Remap capslock to escape
-      command: gsettings set org.gnome.desktop.input-sources xkb-options "['caps:escape']"
+      community.general.dconf:
+        key: "/org/gnome/desktop/input-sources/xkb-options"
+        value: "['caps:escape']"
+        state: present
 
-    # or this
     - name: Remove super-s keybinding
-      command: gsettings set org.gnome.shell.keybindings toggle-overview []
+      community.general.dconf:
+        key: "/org/gnome/shell/keybindings/toggle-overview"
+        value: "@as []"
+        state: present
 
     - name: Install cargo packages
       command: "cargo install tealdeer hyperfine rates"
