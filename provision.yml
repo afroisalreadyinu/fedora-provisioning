@@ -1,0 +1,296 @@
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Save username
+      shell: whoami
+      register: username
+
+- hosts: localhost
+  connection: local
+  become: true
+  tasks:
+
+    - name: Add Opera repository
+      yum_repository:
+        name: opera
+        description: Opera YUM Repo
+        baseurl: https://rpm.opera.com/rpm
+        gpgcheck: yes
+        gpgkey: https://rpm.opera.com/rpmrepo.key
+
+    - name: Add VSCode repository
+      yum_repository:
+        name: vscode
+        description: VSCode YUM Repo
+        baseurl: https://packages.microsoft.com/yumrepos/vscode
+        gpgcheck: yes
+        gpgkey: https://packages.microsoft.com/keys/microsoft.asc
+
+    - name: Install dnf plugins
+      dnf:
+        name: dnf-plugins-core
+        update_cache: yes
+        state: present
+
+    - name: No idea how to do this the proper way
+      command: dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+
+    - name: Enable rpmfusion repos
+      dnf:
+        name: "{{ item }}"
+        state: present
+        disable_gpg_check: yes
+      with_items:
+        - "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ansible_distribution_major_version}}.noarch.rpm"
+        - "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ansible_distribution_major_version}}.noarch.rpm"
+
+    - name: Install applications
+      dnf:
+        name: ["chromium", "opera-stable", "emacs", "screen", "vim-enhanced", "gnome-tweak-tool", "htop", "transmission", "code", "fbreader", "vlc", "texlive-latex", "texlive-collection-mathextra", "texlive-scheme-medium", "texlive-grffile", "texlive-wrapfig", "texlive-ulem", "texlive-amsmath"]
+        update_cache: yes
+        state: present
+
+    - name: Install language tools
+      dnf:
+        name: ["golang-bin", "rust", "cargo", "nodejs", "python3-devel"]
+        update_cache: yes
+        state: present
+
+    - name: Install dev tools
+      dnf:
+        name: ["docker", "python3-virtualenv", "python3-virtualenvwrapper", "libpq-devel", "@development-tools", "autoconf", "openssl", "openssl-devel", "postgresql", "libpng-devel", "freetype-devel", "ffmpeg", "openvpn", "libtool", "cmake", "unrar", "vagrant", "ibm-plex-mono-fonts", "terraform"]
+        update_cache: yes
+        state: present
+
+# The following section is only if you want to replace the red hat
+# implementation of containerd with docker. If you don't want to do so, just
+# delete it.
+- hosts: localhost
+  connection: local
+  become: true
+  tasks:
+
+    - name: Enable experimental docker features
+      copy:
+        src: files/daemon.json
+        dest: "/etc/docker/daemon.json"
+
+    - name: Enable and start docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Create docker group
+      group:
+        name: "docker"
+        state: present
+
+    - name: Add user to group
+      user:
+        name: "{{ username.stdout }}"
+        groups: docker
+        append: yes
+
+    - ansible.posix.firewalld:
+        zone: trusted
+        interface: docker0
+        permanent: yes
+        state: enabled
+
+    - ansible.posix.firewalld:
+        zone: FedoraWorkstation
+        permanent: yes
+        state: enabled
+        masquerade: yes
+
+- hosts: localhost
+  connection: local
+  tasks:
+
+    - name: Ensure .ssh directory exists.
+      file:
+        dest: "~/.ssh"
+        mode: 0700
+        owner: "{{ ansible_user_id }}"
+        state: directory
+
+    - name: Install private ssh key
+      copy:
+        src: files/id_rsa.vault
+        dest: "~/.ssh/id_rsa"
+        decrypt: yes
+        mode: 0600
+        owner: "{{ ansible_user_id }}"
+
+    - name: Install work ssh key
+      copy:
+        src: files/id_rsa_work.vault
+        dest: "~/.ssh/id_rsa_work"
+        decrypt: yes
+        mode: 0600
+        owner: "{{ ansible_user_id }}"
+
+    - name: Copy public keys
+      copy:
+        src: "files/{{ item }}"
+        dest: "~/.ssh/{{ item }}"
+        decrypt: yes
+        mode: 0600
+        owner: "{{ ansible_user_id }}"
+      with_items:
+        - id_rsa.pub
+        - id_rsa_work.pub
+
+    - name: Create some directories
+      file:
+        path: "~/{{ item }}"
+        state: directory
+      with_items:
+        - work
+        - projects
+        - code
+        - ".aws"
+
+    - name: Copy aws config
+      copy:
+        src: "files/aws-{{ item }}.vault"
+        dest: "~/.aws/{{ item }}"
+        decrypt: yes
+        mode: 0600
+        owner: "{{ ansible_user_id }}"
+      with_items:
+        - config
+        - credentials
+
+    # Replace with repos for work
+    - name: Check out work repos
+      git:
+        repo: "{{ item.repo }}"
+        dest: "~/work/{{ item.directory }}"
+        accept_hostkey: yes
+      ignore_errors: yes
+      with_items:
+        - { repo: "git@github.com:work-company/product.git", directory: "product" }
+        - { repo: "git@github.com:work-company/tooling.git", directory: "tooling" }
+
+    # Remove if you don't use Emacs
+    - name: Check out .emacs.d
+      git:
+        repo: "git@github.com:afroisalreadyinu/emacsd.git"
+        dest: "~/.emacs.d"
+      ignore_errors: yes
+
+    # Replace with your personal project repos
+    - name: Check out project repos
+      git:
+        repo: "{{ item.repo }}"
+        dest: "~/projects/{{ item.directory }}"
+        accept_hostkey: yes
+      ignore_errors: yes
+      with_items:
+        - { repo: "git@github.com:afroisalreadyinu/abl-mode.git", directory: "abl-mode" }
+        - { repo: "git@github.com:afroisalreadyinu/miniboss.git", directory: "miniboss" }
+
+    # Example for configuration files
+    - name: Copy screen config
+      copy:
+        src: files/screenrc.txt
+        dest: "~/.screenrc"
+
+    # Example for installing from code; this will be compiled and installed later
+    - name: Clone vcprompt
+      git:
+        repo: "https://github.com/powerman/vcprompt"
+        dest: "~/code/vcprompt"
+        accept_hostkey: yes
+
+    - name: Checkout emacs-vterm
+      git:
+        repo: "git@github.com:akermu/emacs-libvterm.git"
+        dest: "~/code/emacs-libvterm"
+        accept_hostkey: yes
+
+    - name: Create build directory
+      file:
+        path: "~code/emacs-libvterm/build"
+        state: directory
+
+    - name: Build vterm
+      command: "cmake ../ && make"
+      args:
+        creates: "~/code/emacs-libvterm/vterm-module.so"
+
+    - name: Add the flathub flatpak repository remote to the user installation
+      community.general.flatpak_remote:
+        name: flathub
+        state: present
+        flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo
+        method: user
+
+    - name: Install software from flatpak
+      community.general.flatpak:
+        name: "{{ item }}"
+        state: present
+        method: user
+      with_items:
+        - org.signal.Signal
+        - us.zoom.Zoom
+        - com.spotify.Client
+
+    # Don't know of an ansible-native way to do this
+    - name: Remap capslock to escape
+      command: gsettings set org.gnome.desktop.input-sources xkb-options "['caps:escape']"
+
+    # or this
+    - name: Remove super-s keybinding
+      command: gsettings set org.gnome.shell.keybindings toggle-overview []
+
+    - name: Install cargo packages
+      command: "cargo install tealdeer hyperfine rates"
+      args:
+        creates: "/home/{{ username.stdout }}/.cargo/bin/tldr"
+
+    - name: Install goimports
+      command: go get golang.org/x/tools/cmd/goimports
+      args:
+        creates:
+          - "/home/{{ username.stdout }}/go/bin/goimports"
+
+    # Replace Your Username with your username
+    - name: Configure git username
+      community.general.git_config:
+        name: user.name
+        scope: global
+        value: Your Username
+
+    # Replace your@email with your email
+    - name: Configure git email
+      community.general.git_config:
+        name: user.email
+        scope: global
+        value: your@email
+
+    # Remove if you want to keep nano
+    - name: Configure git editor
+      community.general.git_config:
+        name: core.editor
+        scope: global
+        value: vim
+
+
+- hosts: localhost
+  connection: local
+  become: true
+  tasks:
+
+    # Example for compiling and installing from code
+    - name: Install vcprompt
+      command: "{{ item }}"
+      args:
+        chdir: "/home/{{ username.stdout }}/code/vcprompt"
+        creates: "/usr/local/bin/vcprompt"
+      with_items:
+        - "autoconf"
+        - "./configure"
+        - "make install"
