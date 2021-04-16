@@ -18,7 +18,10 @@ cp ~/.ssh/id_rsa.pub .
 ```
 
 Vault will prompt you for an encryption password; make sure to pick something
-you can remember later.
+you can remember later. The playbook includes steps for restoring AWS CLI
+configuration from similar vault-encrypted secrets; instructions for encrypting
+them are similar, but make sure that you use the same encryption password for
+all of them.
 
 ## Running
 
