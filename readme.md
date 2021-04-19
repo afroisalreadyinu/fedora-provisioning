@@ -25,10 +25,11 @@ all of them.
 
 ## Running
 
-On a new workstation, you will need to install Ansible and the `ansible.posix` collection:
+On a new workstation, you will need to install Ansible and the package
+`python3-psutil` through dnf, and the `ansible.posix` collection:
 
 ```
-sudo dnf install ansible
+sudo dnf install ansible python3-psutil
 ansible-galaxy collection install community.general ansible.posix
 ```
 
