@@ -26,6 +26,14 @@
         gpgcheck: yes
         gpgkey: https://packages.microsoft.com/keys/microsoft.asc
 
+    - name: Add 1Password repository
+      yum_repository:
+        name: 1Password
+        description: 1Password YUM Repo
+        baseurl: https://downloads.1password.com/linux/rpm/beta/x86_64
+        gpgcheck: yes
+        gpgkey: https://downloads.1password.com/linux/keys/1password.asc
+
     - name: Install dnf plugins
       dnf:
         name: dnf-plugins-core
@@ -46,7 +54,7 @@
 
     - name: Install applications
       dnf:
-        name: ["chromium", "opera-stable", "emacs", "screen", "vim-enhanced", "gnome-tweak-tool", "htop", "transmission", "code", "fbreader", "vlc", "texlive-latex", "texlive-collection-mathextra", "texlive-scheme-medium", "texlive-grffile", "texlive-wrapfig", "texlive-ulem", "texlive-amsmath"]
+        name: ["chromium", "opera-stable", "emacs", "screen", "vim-enhanced", "gnome-tweak-tool", "htop", "transmission", "code", "fbreader", "vlc", "texlive-latex", "texlive-collection-mathextra", "texlive-scheme-medium", "texlive-grffile", "texlive-wrapfig", "texlive-ulem", "texlive-amsmath", "1password"]
         update_cache: yes
         state: present
 
